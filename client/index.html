@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Encrypted Chat</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <div class="chat-container">
+
+        <header>
+            <h1>🔐 Encrypted Chat</h1>
+            <span id="status">Disconnected</span>
+        </header>
+
+        <main id="messages"></main>
+
+        <form id="message-form">
+
+            <input
+                type="text"
+                id="message-input"
+                placeholder="Type a message..."
+                autocomplete="off"
+                required
+            >
+
+            <button type="submit">
+                Send
+            </button>
+
+        </form>
+
+    </div>
+
+    <script src="js/websocket.js"></script>
+    <script src="js/crypto.js"></script>
+    <script src="js/app.js"></script>
+
+</body>
+
+</html>
