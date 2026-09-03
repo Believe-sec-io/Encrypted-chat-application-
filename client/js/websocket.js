@@ -22,28 +22,37 @@ function connectWebSocket() {
             "Connected";
 
 
-        /*
-         * Prepare the public key.
-         *
-         * The public key can be shared.
-         * The private key NEVER leaves this browser.
-         */
-
         try {
+
+            /*
+             * Export our public ECDH key.
+             */
 
             const publicKey =
                 await exportPublicKey();
 
-            console.log(
-                "[Crypto] Local public key:",
-                publicKey
+
+            /*
+             * Send ONLY the public key.
+             *
+             * The private key stays inside
+             * this browser.
+             */
+
+            socket.send(
+                JSON.stringify(
+                    {
+                        type: "public_key",
+                        public_key: publicKey
+                    }
+                )
             );
 
 
-            /*
-             * Public-key exchange will be implemented
-             * in the next stage.
-             */
+            console.log(
+                "[Crypto] Public key sent."
+            );
+
 
         } catch (error) {
 
@@ -57,18 +66,59 @@ function connectWebSocket() {
 
     socket.addEventListener(
         "message",
-        (event) => {
+        async (event) => {
 
-            console.log(
-                "[WebSocket] Message received:",
-                event.data
-            );
+            try {
+
+                const data =
+                    JSON.parse(event.data);
 
 
-            displayMessage(
-                event.data,
-                "received"
-            );
+                // --------------------------------
+                // Remote public key
+                // --------------------------------
+
+                if (data.type === "public_key") {
+
+                    console.log(
+                        "[Crypto] Remote public key received."
+                    );
+
+
+                    await handleRemotePublicKey(
+                        data.public_key
+                    );
+
+                    return;
+                }
+
+
+                // --------------------------------
+                // Chat message
+                // --------------------------------
+
+                if (data.type === "message") {
+
+                    console.log(
+                        "[WebSocket] Message received:",
+                        data.data
+                    );
+
+
+                    displayMessage(
+                        data.data,
+                        "received"
+                    );
+                }
+
+
+            } catch (error) {
+
+                console.error(
+                    "[WebSocket] Invalid message:",
+                    error
+                );
+            }
         }
     );
 
@@ -95,4 +145,59 @@ function connectWebSocket() {
             );
         }
     );
-                            }
+}
+
+
+/**
+ * Handle a public key received from another client.
+ */
+async function handleRemotePublicKey(publicKeyData) {
+
+    try {
+
+        const remotePublicKey =
+            await importPublicKey(
+                publicKeyData
+            );
+
+
+        console.log(
+            "[Crypto] Remote public key imported."
+        );
+
+
+        /*
+         * Derive the shared secret.
+         *
+         * Local private key
+         * +
+         * Remote public key
+         * =
+         * Shared secret
+         */
+
+        const sharedSecret =
+            await deriveSharedSecret(
+                remotePublicKey
+            );
+
+
+        console.log(
+            "[Crypto] Shared secret established."
+        );
+
+
+        console.log(
+            "[Crypto] Shared secret:",
+            bufferToHex(sharedSecret)
+        );
+
+
+    } catch (error) {
+
+        console.error(
+            "[Crypto] Failed to establish shared secret:",
+            error
+        );
+    }
+}
