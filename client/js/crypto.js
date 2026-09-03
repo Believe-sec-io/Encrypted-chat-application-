@@ -11,11 +11,20 @@
  *      ↓
  * AES-256-GCM
  *
- * The private ECDH key never leaves the browser.
+ * Identity:
+ *
+ * Public Key
+ *      ↓
+ * SHA-256
+ *      ↓
+ * Fingerprint
  */
 
 let keyPair = null;
 let encryptionKey = null;
+
+let localFingerprint = null;
+let remoteFingerprint = null;
 
 
 /**
@@ -43,7 +52,7 @@ async function generateKeyPair() {
 
 
 /**
- * Export only the public ECDH key.
+ * Export the public key as JWK.
  */
 async function exportPublicKey() {
 
@@ -61,7 +70,7 @@ async function exportPublicKey() {
 
 
 /**
- * Import a remote public ECDH key.
+ * Import a remote public key.
  */
 async function importPublicKey(publicKeyData) {
 
@@ -79,7 +88,118 @@ async function importPublicKey(publicKeyData) {
 
 
 /**
- * Derive the raw ECDH shared secret.
+ * Convert an ArrayBuffer to Base64.
+ */
+function bufferToBase64(buffer) {
+
+    const bytes =
+        new Uint8Array(buffer);
+
+    let binary = "";
+
+    for (const byte of bytes) {
+        binary += String.fromCharCode(byte);
+    }
+
+    return btoa(binary);
+}
+
+
+/**
+ * Convert Base64 to Uint8Array.
+ */
+function base64ToBuffer(base64) {
+
+    const binary = atob(base64);
+
+    const bytes =
+        new Uint8Array(
+            binary.length
+        );
+
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] =
+            binary.charCodeAt(i);
+    }
+
+    return bytes;
+}
+
+
+/**
+ * Convert ArrayBuffer to hexadecimal.
+ */
+function bufferToHex(buffer) {
+
+    const bytes =
+        new Uint8Array(buffer);
+
+    return Array.from(bytes)
+        .map(
+            byte =>
+                byte
+                    .toString(16)
+                    .padStart(2, "0")
+        )
+        .join("");
+}
+
+
+/**
+ * Calculate SHA-256 hash.
+ */
+async function sha256(data) {
+
+    return await crypto.subtle.digest(
+        "SHA-256",
+        data
+    );
+}
+
+
+/**
+ * Generate a fingerprint from a public key.
+ *
+ * The JWK is converted into a deterministic string
+ * before hashing.
+ */
+async function generateFingerprint(
+    publicKeyData
+) {
+
+    const canonicalKey = JSON.stringify({
+        crv: publicKeyData.crv,
+        kty: publicKeyData.kty,
+        x: publicKeyData.x,
+        y: publicKeyData.y
+    });
+
+    const encoded =
+        new TextEncoder().encode(
+            canonicalKey
+        );
+
+    const hash =
+        await sha256(encoded);
+
+    const hex =
+        bufferToHex(hash);
+
+    /*
+     * Format:
+     *
+     * 12AB 34CD 56EF ...
+     */
+
+    return hex
+        .match(/.{1,4}/g)
+        .join(" ")
+        .toUpperCase();
+}
+
+
+/**
+ * Derive ECDH shared secret.
  */
 async function deriveSharedSecret(
     remotePublicKey
@@ -103,9 +223,7 @@ async function deriveSharedSecret(
 
 
 /**
- * Convert the ECDH shared secret into an AES key.
- *
- * HKDF is used as a Key Derivation Function.
+ * Derive AES-256-GCM key using HKDF.
  */
 async function deriveEncryptionKey(
     sharedSecret
@@ -130,13 +248,15 @@ async function deriveEncryptionKey(
 
                 hash: "SHA-256",
 
-                salt: new TextEncoder().encode(
-                    "encrypted-chat-v1"
-                ),
+                salt:
+                    new TextEncoder().encode(
+                        "encrypted-chat-v1"
+                    ),
 
-                info: new TextEncoder().encode(
-                    "message-encryption"
-                )
+                info:
+                    new TextEncoder().encode(
+                        "message-encryption"
+                    )
             },
 
             hkdfKey,
@@ -165,7 +285,7 @@ async function deriveEncryptionKey(
 
 
 /**
- * Encrypt a plaintext message using AES-256-GCM.
+ * Encrypt a plaintext message.
  */
 async function encryptMessage(
     plaintext
@@ -179,22 +299,15 @@ async function encryptMessage(
     }
 
 
-    const encoder =
-        new TextEncoder();
-
-
-    const plaintextBytes =
-        encoder.encode(plaintext);
-
-
-    /*
-     * AES-GCM requires a unique IV.
-     *
-     * 96-bit IV = 12 bytes.
-     */
     const iv =
         crypto.getRandomValues(
             new Uint8Array(12)
+        );
+
+
+    const plaintextBytes =
+        new TextEncoder().encode(
+            plaintext
         );
 
 
@@ -212,14 +325,21 @@ async function encryptMessage(
 
 
     return {
-        ciphertext: bufferToBase64(ciphertext),
-        iv: bufferToBase64(iv)
+        ciphertext:
+            bufferToBase64(
+                ciphertext
+            ),
+
+        iv:
+            bufferToBase64(
+                iv
+            )
     };
 }
 
 
 /**
- * Decrypt an AES-256-GCM message.
+ * Decrypt an AES-GCM message.
  */
 async function decryptMessage(
     encryptedData
@@ -261,57 +381,4 @@ async function decryptMessage(
     return new TextDecoder().decode(
         plaintext
     );
-}
-
-
-/**
- * Convert ArrayBuffer / Uint8Array to Base64.
- */
-function bufferToBase64(buffer) {
-
-    const bytes =
-        new Uint8Array(buffer);
-
-
-    let binary = "";
-
-
-    for (const byte of bytes) {
-        binary += String.fromCharCode(byte);
-    }
-
-
-    return btoa(binary);
-}
-
-
-/**
- * Convert Base64 to Uint8Array.
- */
-function base64ToBuffer(base64) {
-
-    const binary =
-        atob(base64);
-
-
-    const bytes =
-        new Uint8Array(
-            binary.length
-        );
-
-
-    for (let i = 0; i < binary.length; i++) {
-
-        bytes[i] =
-            binary.charCodeAt(i);
-    }
-
-
-    return bytes;
-}
-
-
-/**
- * Convert a buffer to hexadecimal.
- *
- * Debug
+         }
