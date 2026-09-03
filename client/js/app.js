@@ -27,12 +27,16 @@ form.addEventListener("submit", (event) => {
         return;
     }
 
+
     if (!socket || socket.readyState !== WebSocket.OPEN) {
 
-        console.error("WebSocket is not connected.");
+        console.error(
+            "[WebSocket] Connection is not available."
+        );
 
         return;
     }
+
 
     socket.send(message);
 
@@ -42,4 +46,47 @@ form.addEventListener("submit", (event) => {
 });
 
 
-connectWebSocket();
+async function initializeApplication() {
+
+    try {
+
+        console.log("[App] Initializing...");
+
+
+        // Generate our local ECDH key pair.
+        await generateKeyPair();
+
+
+        // Run a local cryptographic test.
+        const ecdhWorking = await testECDH();
+
+
+        if (!ecdhWorking) {
+
+            console.error(
+                "[App] Cryptographic initialization failed."
+            );
+
+            return;
+        }
+
+
+        // Connect to the WebSocket server.
+        connectWebSocket();
+
+
+        console.log(
+            "[App] Application initialized successfully."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "[App] Initialization error:",
+            error
+        );
+    }
+}
+
+
+initializeApplication();
