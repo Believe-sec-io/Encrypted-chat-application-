@@ -31,11 +31,41 @@ function connectWebSocket() {
                     await exportPublicKey();
 
 
+                /*
+                 * Generate our identity fingerprint.
+                 */
+
+                localFingerprint =
+                    await generateFingerprint(
+                        publicKey
+                    );
+
+
+                console.log(
+                    "[Identity] Local fingerprint:"
+                );
+
+                console.log(
+                    localFingerprint
+                );
+
+
+                /*
+                 * Send the public key
+                 * and its fingerprint.
+                 */
+
                 socket.send(
                     JSON.stringify(
                         {
-                            type: "public_key",
-                            public_key: publicKey
+                            type:
+                                "public_key",
+
+                            public_key:
+                                publicKey,
+
+                            fingerprint:
+                                localFingerprint
                         }
                     )
                 );
@@ -49,7 +79,7 @@ function connectWebSocket() {
             } catch (error) {
 
                 console.error(
-                    "[Crypto] Public key error:",
+                    "[Crypto] Initialization error:",
                     error
                 );
             }
@@ -64,16 +94,67 @@ function connectWebSocket() {
             try {
 
                 const data =
-                    JSON.parse(event.data);
+                    JSON.parse(
+                        event.data
+                    );
 
 
                 /*
-                 * Remote public key
+                 * Public key received.
                  */
-                if (data.type === "public_key") {
+
+                if (
+                    data.type ===
+                    "public_key"
+                ) {
 
                     console.log(
-                        "[Crypto] Remote public key received."
+                        "[Identity] Remote public key received."
+                    );
+
+
+                    remoteFingerprint =
+                        await generateFingerprint(
+                            data.public_key
+                        );
+
+
+                    console.log(
+                        "[Identity] Remote fingerprint:"
+                    );
+
+                    console.log(
+                        remoteFingerprint
+                    );
+
+
+                    /*
+                     * Verify that the fingerprint
+                     * matches the fingerprint sent
+                     * by the remote client.
+                     */
+
+                    if (
+                        remoteFingerprint !==
+                        data.fingerprint
+                    ) {
+
+                        console.error(
+                            "[SECURITY] Fingerprint mismatch!"
+                        );
+
+                        document.getElementById(
+                            "status"
+                        ).textContent =
+                            "⚠️ Key mismatch";
+
+
+                        return;
+                    }
+
+
+                    console.log(
+                        "[Identity] Fingerprint verified."
                     );
 
 
@@ -94,8 +175,14 @@ function connectWebSocket() {
                     );
 
 
+                    document.getElementById(
+                        "status"
+                    ).textContent =
+                        "🔐 Secure";
+
+
                     console.log(
-                        "[Crypto] Secure encryption session established."
+                        "[Crypto] Secure session established."
                     );
 
 
@@ -104,9 +191,13 @@ function connectWebSocket() {
 
 
                 /*
-                 * Encrypted message
+                 * Encrypted message received.
                  */
-                if (data.type === "encrypted_message") {
+
+                if (
+                    data.type ===
+                    "encrypted_message"
+                ) {
 
                     const plaintext =
                         await decryptMessage(
@@ -146,14 +237,15 @@ function connectWebSocket() {
 
             document.getElementById(
                 "status"
-            ).textContent = "Disconnected";
+            ).textContent =
+                "Disconnected";
         }
     );
 
 
     socket.addEventListener(
         "error",
-        (error) => {
+        error => {
 
             console.error(
                 "[WebSocket] Error:",
@@ -161,4 +253,4 @@ function connectWebSocket() {
             );
         }
     );
-}
+                }
