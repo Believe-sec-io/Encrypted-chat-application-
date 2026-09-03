@@ -6,7 +6,6 @@ connected_clients = set()
 
 
 async def register(websocket):
-
     connected_clients.add(websocket)
 
     print(
@@ -16,7 +15,6 @@ async def register(websocket):
 
 
 async def unregister(websocket):
-
     connected_clients.discard(websocket)
 
     print(
@@ -31,36 +29,24 @@ async def broadcast(data, sender):
 
     disconnected = set()
 
-
     for client in connected_clients.copy():
 
         if client == sender:
             continue
 
-
         try:
-
-            await client.send(
-                message
-            )
-
+            await client.send(message)
 
         except websockets.exceptions.ConnectionClosed:
-
             disconnected.add(client)
 
-
     for client in disconnected:
-
-        connected_clients.discard(
-            client
-        )
+        connected_clients.discard(client)
 
 
 async def handle_client(websocket):
 
     await register(websocket)
-
 
     try:
 
@@ -68,41 +54,26 @@ async def handle_client(websocket):
 
             try:
 
-                data =
-                    json.loads(raw_message)
-
+                data = json.loads(raw_message)
 
             except json.JSONDecodeError:
 
-                print(
-                    "[!] Invalid JSON."
-                )
-
+                print("[!] Invalid JSON.")
                 continue
 
-
-            message_type =
-                data.get("type")
+            message_type = data.get("type")
 
 
             if message_type == "public_key":
 
-                print(
-                    "[KEY] Public key received."
-                )
-
+                print("[KEY] Public key received.")
 
                 await broadcast(
                     {
-                        "type":
-                            "public_key",
-
-                        "public_key":
-                            data.get(
-                                "public_key"
-                            )
+                        "type": "public_key",
+                        "public_key": data.get("public_key"),
+                        "fingerprint": data.get("fingerprint")
                     },
-
                     websocket
                 )
 
@@ -113,18 +84,11 @@ async def handle_client(websocket):
                     "[MESSAGE] Encrypted message received."
                 )
 
-
                 await broadcast(
                     {
-                        "type":
-                            "encrypted_message",
-
-                        "data":
-                            data.get(
-                                "data"
-                            )
+                        "type": "encrypted_message",
+                        "data": data.get("data")
                     },
-
                     websocket
                 )
 
@@ -141,9 +105,6 @@ async def handle_client(websocket):
 
         pass
 
-
     finally:
 
-        await unregister(
-            websocket
-            )
+        await unregister(websocket)
