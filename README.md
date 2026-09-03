@@ -1,4 +1,4 @@
-🔐 Encrypted Chat
+## 🔐 Encrypted Chat
 
 A lightweight end-to-end encrypted web chat prototype built with Python, WebSockets, and the Web Crypto API.
 
@@ -8,7 +8,7 @@ The project demonstrates how two clients can establish a shared encryption key a
 
 ---
 
-📌 Overview
+## Overview
 
 The application uses:
 
