@@ -6,70 +6,84 @@ connected_clients = set()
 
 
 async def register(websocket):
+
     connected_clients.add(websocket)
 
     print(
-        f"[+] Client connected: {websocket.remote_address}"
+        f"[+] Client connected: "
+        f"{websocket.remote_address}"
     )
 
 
 async def unregister(websocket):
+
     connected_clients.discard(websocket)
 
     print(
-        f"[-] Client disconnected: {websocket.remote_address}"
+        f"[-] Client disconnected: "
+        f"{websocket.remote_address}"
     )
 
 
 async def broadcast(data, sender):
-    """
-    Send data to every connected client except the sender.
-    """
 
     message = json.dumps(data)
 
     disconnected = set()
+
 
     for client in connected_clients.copy():
 
         if client == sender:
             continue
 
+
         try:
-            await client.send(message)
+
+            await client.send(
+                message
+            )
+
 
         except websockets.exceptions.ConnectionClosed:
+
             disconnected.add(client)
 
 
     for client in disconnected:
-        connected_clients.discard(client)
+
+        connected_clients.discard(
+            client
+        )
 
 
 async def handle_client(websocket):
 
     await register(websocket)
 
+
     try:
 
         async for raw_message in websocket:
 
             try:
-                data = json.loads(raw_message)
+
+                data =
+                    json.loads(raw_message)
+
 
             except json.JSONDecodeError:
 
-                print("[!] Invalid JSON received.")
+                print(
+                    "[!] Invalid JSON."
+                )
 
                 continue
 
 
-            message_type = data.get("type")
+            message_type =
+                data.get("type")
 
-
-            # ----------------------------------------
-            # Public key exchange
-            # ----------------------------------------
 
             if message_type == "public_key":
 
@@ -80,29 +94,37 @@ async def handle_client(websocket):
 
                 await broadcast(
                     {
-                        "type": "public_key",
-                        "public_key": data.get("public_key")
+                        "type":
+                            "public_key",
+
+                        "public_key":
+                            data.get(
+                                "public_key"
+                            )
                     },
+
                     websocket
                 )
 
 
-            # ----------------------------------------
-            # Chat message
-            # ----------------------------------------
-
-            elif message_type == "message":
+            elif message_type == "encrypted_message":
 
                 print(
-                    "[MESSAGE] Message received."
+                    "[MESSAGE] Encrypted message received."
                 )
 
 
                 await broadcast(
                     {
-                        "type": "message",
-                        "data": data.get("data")
+                        "type":
+                            "encrypted_message",
+
+                        "data":
+                            data.get(
+                                "data"
+                            )
                     },
+
                     websocket
                 )
 
@@ -110,7 +132,8 @@ async def handle_client(websocket):
             else:
 
                 print(
-                    f"[!] Unknown message type: {message_type}"
+                    f"[!] Unknown message type: "
+                    f"{message_type}"
                 )
 
 
@@ -118,6 +141,9 @@ async def handle_client(websocket):
 
         pass
 
+
     finally:
 
-        await unregister(websocket)
+        await unregister(
+            websocket
+            )
