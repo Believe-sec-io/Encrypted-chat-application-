@@ -1,88 +1,165 @@
-const form = document.getElementById("message-form");
-const input = document.getElementById("message-input");
-const messages = document.getElementById("messages");
+const form =
+    document.getElementById(
+        "message-form"
+    );
 
 
-function displayMessage(message, type) {
+const input =
+    document.getElementById(
+        "message-input"
+    );
 
-    const element = document.createElement("div");
 
-    element.classList.add("message", type);
+const messages =
+    document.getElementById(
+        "messages"
+    );
 
-    element.textContent = message;
 
-    messages.appendChild(element);
+function displayMessage(
+    message,
+    type
+) {
 
-    messages.scrollTop = messages.scrollHeight;
+    const element =
+        document.createElement(
+            "div"
+        );
+
+
+    element.classList.add(
+        "message",
+        type
+    );
+
+
+    element.textContent =
+        message;
+
+
+    messages.appendChild(
+        element
+    );
+
+
+    messages.scrollTop =
+        messages.scrollHeight;
 }
 
 
-form.addEventListener("submit", (event) => {
+/**
+ * Send an encrypted message.
+ */
+form.addEventListener(
+    "submit",
+    async (event) => {
 
-    event.preventDefault();
-
-    const message = input.value.trim();
-
-    if (!message) {
-        return;
-    }
-
-
-    if (!socket || socket.readyState !== WebSocket.OPEN) {
-
-        console.error(
-            "[WebSocket] Connection is not available."
-        );
-
-        return;
-    }
+        event.preventDefault();
 
 
-    socket.send(message);
-
-    displayMessage(message, "sent");
-
-    input.value = "";
-});
+        const message =
+            input.value.trim();
 
 
-async function initializeApplication() {
-
-    try {
-
-        console.log("[App] Initializing...");
+        if (!message) {
+            return;
+        }
 
 
-        // Generate our local ECDH key pair.
-        await generateKeyPair();
-
-
-        // Run a local cryptographic test.
-        const ecdhWorking = await testECDH();
-
-
-        if (!ecdhWorking) {
+        if (
+            !socket ||
+            socket.readyState !== WebSocket.OPEN
+        ) {
 
             console.error(
-                "[App] Cryptographic initialization failed."
+                "[WebSocket] Connection unavailable."
             );
 
             return;
         }
 
 
-        // Connect to the WebSocket server.
+        try {
+
+            /*
+             * Encrypt BEFORE sending.
+             */
+
+            const encrypted =
+                await encryptMessage(
+                    message
+                );
+
+
+            /*
+             * The server receives only:
+             *
+             * ciphertext
+             * +
+             * IV
+             */
+
+            socket.send(
+                JSON.stringify(
+                    {
+                        type:
+                            "encrypted_message",
+
+                        data:
+                            encrypted
+                    }
+                )
+            );
+
+
+            /*
+             * Display our own plaintext locally.
+             */
+
+            displayMessage(
+                message,
+                "sent"
+            );
+
+
+            input.value = "";
+
+
+        } catch (error) {
+
+            console.error(
+                "[Crypto] Encryption failed:",
+                error
+            );
+        }
+    }
+);
+
+
+async function initializeApplication() {
+
+    try {
+
+        console.log(
+            "[App] Initializing..."
+        );
+
+
+        await generateKeyPair();
+
+
         connectWebSocket();
 
 
         console.log(
-            "[App] Application initialized successfully."
+            "[App] Application initialized."
         );
+
 
     } catch (error) {
 
         console.error(
-            "[App] Initialization error:",
+            "[App] Initialization failed:",
             error
         );
     }
